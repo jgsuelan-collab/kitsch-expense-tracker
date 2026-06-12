@@ -1,0 +1,58 @@
+{
+ "2025-01": {
+  "Amazon": 0,
+  "Shopify/DTC": 0,
+  "Wholesale/Retail": 0,
+  "Other/Fulfillment": 6645499.84,
+  "Total": 6645499.84
+ },
+ "2025-02": {
+  "Amazon": 84501.72,
+  "Shopify/DTC": 62050.93,
+  "Wholesale/Retail": 352.28,
+  "Other/Fulfillment": 9525040.41,
+  "Total": 9671945.34
+ },
+ "2025-03": {
+  "Amazon": 10952873.41,
+  "Shopify/DTC": 9102939.46,
+  "Wholesale/Retail": 47289.56,
+  "Other/Fulfillment": 6932262.51,
+  "Total": 27035364.94
+ },
+ "2025-04": {
+  "Amazon": 10802119.09,
+  "Shopify/DTC": 9015753.58,
+  "Wholesale/Retail": 163266.92,
+  "Other/Fulfillment": 7648770.44,
+  "Total": 27629910.03
+ },
+ "2026-01": {
+  "Amazon": 19706867.01,
+  "Shopify/DTC": 10795900.91,
+  "Wholesale/Retail": 157647.56,
+  "Other/Fulfillment": 17282039.95,
+  "Total": 47942455.43
+ },
+ "2026-02": {
+  "Amazon": 18784496.82,
+  "Shopify/DTC": 10274022.12,
+  "Wholesale/Retail": 53514.52,
+  "Other/Fulfillment": 15199347.3,
+  "Total": 44311380.76
+ },
+ "2026-03": {
+  "Amazon": 22156832.74,
+  "Shopify/DTC": 13221749.3,
+  "Wholesale/Retail": 35008.09,
+  "Other/Fulfillment": 23371740.5,
+  "Total": 58785330.63
+ },
+ "2026-04": {
+  "Amazon": 20263279.02,
+  "Shopify/DTC": 15671212.51,
+  "Wholesale/Retail": 98772.15,
+  "Other/Fulfillment": 19675857.85,
+  "Total": 55709121.53
+ }
+}

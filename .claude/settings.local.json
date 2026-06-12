@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Rename-Item \"kitsch_expense_dashboard.html\" \"index.html\")"
+    ]
+  }
+}
