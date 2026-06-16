@@ -376,12 +376,26 @@ function viewOverview(){
   const deptSPLY=splyAgg(aRows,r=>D.depts[r[DI]]);
   let TpyD=0; deptSPLY.forEach(o=>TpyD+=o.py);
   const naD='<span class="na">n/a</span>';
+  // YTD computations — full calendar year regardless of period filter
+  const ytdSet=new Set();periods.forEach((p,i)=>{if(p.startsWith(String(CY)))ytdSet.add(i);});
+  const ytdPYPeriods=new Set([...ytdSet].map(i=>priorYM(periods[i])));
+  const ytdTY=aRows.filter(r=>ytdSet.has(r[PI])).reduce((s,r)=>s+r[AMT],0);
+  const ytdLY=aRows.filter(r=>ytdPYPeriods.has(periods[r[PI]])).reduce((s,r)=>s+r[AMT],0);
+  const ytdGrowth=ytdLY>0?chg(ytdTY,ytdLY):null;
+  // Sparklines: last 6 periods per dept
+  const sparkN=Math.min(6,periods.length);const sparkStart=periods.length-sparkN;
+  const deptSpark=new Map(deptAgg.map(([d])=>[d,new Array(sparkN).fill(0)]));
+  for(const r of aRows){if(r[PI]>=sparkStart&&deptSpark.has(D.depts[r[DI]]))deptSpark.get(D.depts[r[DI]])[r[PI]-sparkStart]+=r[AMT];}
+  const sparkSVG=vals=>{const mx=Math.max(...vals,1);const w=80,h=24,n=vals.length;if(n<2)return'';
+    const pts=vals.map((v,i)=>`${(i/(n-1)*w).toFixed(1)},${(h-2-(v/mx*(h-6))).toFixed(1)}`).join(' ');
+    return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="#CA9A8E" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;};
   const rowsTbl=deptAgg.map(([d,a])=>{const o=deptSPLY.get(d)||{cy:0,py:0};const shLY=TpyD?(o.py/TpyD*100):null;
     return `<tr class="clickable" data-dept="${esc(d)}"><td>${d}</td><td class="num">${usd(a)}</td>
       <td class="num">${o.py?usd(o.py):naD}</td>
       <td class="num">${(a/T*100).toFixed(1)}%</td>
       <td class="num">${shLY===null?naD:shLY.toFixed(1)+'%'}</td>
       <td class="num">${chgPill(o.cy,o.py)}</td>
+      <td style="width:88px;padding:4px 8px">${sparkSVG(deptSpark.get(d)||new Array(sparkN).fill(0))}</td>
       <td style="width:110px"><div class="bar" style="width:${(a/deptAgg[0][1]*100).toFixed(0)}%"></div></td></tr>`;}).join('');
   return `<div class="grid cards4">
     ${headline('Largest driver of expense growth',driver?`${driver[0]} ${driver[1]>=0?'added':'cut'} ${usd(Math.abs(driver[1]))} vs SPLY`:'—','warn','Year-over-year, same months')}
@@ -396,13 +410,16 @@ function viewOverview(){
     ${kpi('OpEx % of revenue',opexRatio!==null?opexRatio.toFixed(1)+'%':'n/a','')}
     ${kpi('vs SPLY (OpEx)',st.py?pct(chg(st.cy,st.py)):'n/a',`${usd(st.cy)} vs ${usd(st.py)}`)}
     ${kpi('Inventory (COGS)',usd(total(cogsRows)),'separate')}
+    ${kpi('YTD Expense (TY)',usd(ytdTY),CY+' year-to-date')}
+    ${kpi('YTD Expense (LY)',usd(ytdLY),PY+' same months')}
+    ${kpi('YTD Growth',ytdGrowth!==null?pct(ytdGrowth):'n/a',ytdGrowth!==null?(ytdGrowth>=0?'↑ up vs last year':'↓ down vs last year'):'')}
   </div>
   <div class="grid cols2">
     <div class="card"><h3>Operating expense vs revenue by month</h3><div class="chartbox"><canvas id="cRev"></canvas></div></div>
     <div class="card"><h3>Share by department</h3><div class="chartbox"><canvas id="cShare"></canvas></div></div>
   </div>
   <div class="card" style="margin-top:16px"><h3>Departments — click to open</h3>
-   <table><tr><th>Department</th><th class="num">Spend</th><th class="num">Last yr</th><th class="num">% of OpEx</th><th class="num">% OpEx LY</th><th class="num">vs SPLY</th><th></th></tr>${rowsTbl}</table></div>`;
+   <table><tr><th>Department</th><th class="num">Spend</th><th class="num">Last yr</th><th class="num">% of OpEx</th><th class="num">% OpEx LY</th><th class="num">vs SPLY</th><th>6-mo trend</th><th></th></tr>${rowsTbl}</table></div>`;
 }
 
 // ===== DEPARTMENT =====
