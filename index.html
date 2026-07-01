@@ -93,6 +93,8 @@ tbody tr:hover{background:#faf6f0}tr.clickable{cursor:pointer}
       <div style="display:flex;gap:12px;align-items:center">
         <input id="vsearch" list="vlist" placeholder="Search any vendor..." autocomplete="off" style="font:inherit;font-size:12.5px;padding:7px 11px;border-radius:999px;border:1px solid var(--gray);min-width:230px;background:#fff"/>
         <datalist id="vlist"></datalist>
+        <input id="glsearch" list="gllist" placeholder="Search GL account..." autocomplete="off" style="font:inherit;font-size:12.5px;padding:7px 11px;border-radius:999px;border:1px solid var(--gray);min-width:230px;background:#fff;margin-left:8px"/>
+        <datalist id="gllist"></datalist>
         <div class="srcchip">● Folder (expenses) · NetSuite revenue <span style="color:#5b7a52">connected</span> (2025-03→2026-05)</div>
       </div></div>
     <div class="wrap" id="view"></div>
@@ -250,6 +252,13 @@ function buildFilters(){
   const glist=[...new Set(scoped.map(r=>D.gls[r[GI]]).filter(Boolean))].sort();
   const vN=[...new Set(scoped.map(r=>D.vendors[r[VI]]))].length;
   f.innerHTML=`<div class="grp" style="color:#9a9088">Filters${state.dept?` · ${esc(state.dept)}`:''}</div>
+   <div class="fld"><label>Quick range</label>
+     <div style="display:flex;flex-direction:column;gap:5px">
+       <button class="btn ghost sm" id="pr3">Last 3 months</button>
+       <button class="btn ghost sm" id="pr6">Last 6 months</button>
+       <button class="btn ghost sm" id="pr12">Last 12 months</button>
+       <button class="btn ghost sm" id="prytd">Year to date</button>
+     </div></div>
    <div class="fld"><label>Period from</label><select id="pf">${popt}</select></div>
    <div class="fld"><label>Period to</label><select id="pt">${popt}</select></div>
    <div class="fld"><label>Comparison</label><select id="cmp"><option value="sply" ${state.cmp==='sply'?'selected':''}>Same period last year</option><option value="pm" ${state.cmp==='pm'?'selected':''}>Prior month</option></select></div>
@@ -268,6 +277,12 @@ function buildFilters(){
   document.getElementById('gf').onchange=e=>{state.glFilt=e.target.value;render();};
   let t;document.getElementById('vq').oninput=e=>{clearTimeout(t);t=setTimeout(()=>{state.vq=e.target.value;render();},250);};
   document.getElementById('rst').onclick=()=>{state.vq='';state.costFilt='';state.glFilt='';state.pFrom=Math.max(0,periods.findIndex(p=>p.slice(0,4)===String(CY)));state.pTo=periods.length-1;render();};
+  [{id:'pr3',n:3},{id:'pr6',n:6},{id:'pr12',n:12},{id:'prytd',n:-1}].forEach(({id,n})=>{
+    const btn=document.getElementById(id);if(!btn)return;
+    btn.onclick=()=>{state.pTo=periods.length-1;
+      if(n===-1){state.pFrom=Math.max(0,periods.findIndex(p=>p.startsWith(String(CY))));}
+      else{state.pFrom=Math.max(0,periods.length-n);}
+      render();};});
 }
 
 function render(){
@@ -319,13 +334,19 @@ function viewOverview(){
   const deptSPLY=splyAgg(aRows,r=>D.depts[r[DI]]);
   let TpyD=0; deptSPLY.forEach(o=>TpyD+=o.py);
   const naD='<span class="na">n/a</span>';
+  const sparkN=Math.min(6,periods.length);const sparkStart=periods.length-sparkN;
+  const deptSpark=new Map(deptAgg.map(([d])=>[d,new Array(sparkN).fill(0)]));
+  for(const r of aRows){if(r[PI]>=sparkStart&&deptSpark.has(D.depts[r[DI]]))deptSpark.get(D.depts[r[DI]])[r[PI]-sparkStart]+=r[AMT];}
+  const sparkSVG=vals=>{const mx=Math.max(...vals,1);const w=80,h=24,n=vals.length;if(n<2)return'';
+    const pts=vals.map((v,i)=>`${(i/(n-1)*w).toFixed(1)},${(h-2-(v/mx*(h-6))).toFixed(1)}`).join(' ');
+    return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="vertical-align:middle"><polyline points="${pts}" fill="none" stroke="#CA9A8E" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/></svg>`;};
   const rowsTbl=deptAgg.map(([d,a])=>{const o=deptSPLY.get(d)||{cy:0,py:0};const shLY=TpyD?(o.py/TpyD*100):null;
     return `<tr class="clickable" data-dept="${esc(d)}"><td>${d}</td><td class="num">${usd(a)}</td>
       <td class="num">${o.py?usd(o.py):naD}</td>
       <td class="num">${(a/T*100).toFixed(1)}%</td>
       <td class="num">${shLY===null?naD:shLY.toFixed(1)+'%'}</td>
       <td class="num">${chgPill(o.cy,o.py)}</td>
-      <td style="width:110px"><div class="bar" style="width:${(a/deptAgg[0][1]*100).toFixed(0)}%"></div></td></tr>`;}).join('');
+      <td style="width:88px;padding:4px 8px">${sparkSVG(deptSpark.get(d)||new Array(sparkN).fill(0))}</td></tr>`;}).join('');
   return `<div class="grid cards4">
     ${headline('Largest driver of expense growth',driver?`${driver[0]} ${driver[1]>=0?'added':'cut'} ${usd(Math.abs(driver[1]))} vs SPLY`:'—','warn','Year-over-year, same months')}
     ${headline('Operating expense vs last year',st.py?`${pct(chg(st.cy,st.py))} vs ${PY}`:'n/a',chg(st.cy,st.py)>=0?'warn':'good',`${usd(st.cy)} CY · ${usd(st.py)} PY`)}
@@ -345,7 +366,8 @@ function viewOverview(){
     <div class="card"><h3>Share by department</h3><div class="chartbox"><canvas id="cShare"></canvas></div></div>
   </div>
   <div class="card" style="margin-top:16px"><h3>Departments — click to open</h3>
-   <table><tr><th>Department</th><th class="num">Spend</th><th class="num">Last yr</th><th class="num">% of OpEx</th><th class="num">% OpEx LY</th><th class="num">vs SPLY</th><th></th></tr>${rowsTbl}</table></div>`;
+   <table><tr><th>Department</th><th class="num">Spend</th><th class="num">Last yr</th><th class="num">% of OpEx</th><th class="num">% OpEx LY</th><th class="num">vs SPLY</th><th>6-mo trend</th></tr>${rowsTbl}</table></div>
+  <div class="card" style="margin-top:16px">${itemsTable(rows,'overview')}</div>`;
 }
 
 // ===== DEPARTMENT =====
@@ -549,6 +571,17 @@ const q=s=>{s=(s==null?'':String(s));return /[",\n]/.test(s)?'"'+s.replace(/"/g,
   const go=()=>{const q=inp.value.trim().toLowerCase();if(!q)return;
     const v=D.vendors.find(x=>x.toLowerCase()===q)||D.vendors.find(x=>x.toLowerCase().includes(q));
     if(v){state.vendor=v;state.dept=null;state.page='vendor';render();inp.blur();}
+    else{inp.style.borderColor='#b04b3f';setTimeout(()=>inp.style.borderColor='',1200);}};
+  if(inp){inp.addEventListener('change',go);inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});}
+})();
+// GL account search bar (top)
+(function setupGLSearch(){
+  const dl=document.getElementById('gllist');
+  if(dl)dl.innerHTML=D.gls.filter(Boolean).map(g=>'<option value="'+esc(g).replace(/"/g,'&quot;')+'"></option>').join('');
+  const inp=document.getElementById('glsearch');
+  const go=()=>{const q=inp.value.trim().toLowerCase();if(!q){state.gl=null;render();return;}
+    const g=D.gls.find(x=>x&&x.toLowerCase()===q)||D.gls.find(x=>x&&x.toLowerCase().includes(q));
+    if(g){state.gl=g;state.vendor=null;state.dept=null;state.page='gl';render();inp.blur();}
     else{inp.style.borderColor='#b04b3f';setTimeout(()=>inp.style.borderColor='',1200);}};
   if(inp){inp.addEventListener('change',go);inp.addEventListener('keydown',e=>{if(e.key==='Enter')go();});}
 })();
